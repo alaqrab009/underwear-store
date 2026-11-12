@@ -573,21 +573,54 @@ $('tokenDel').onclick = function () {
 
 /* ---------- الحفظ والنشر ---------- */
 
+function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+
+/* يميّز بين مفتاح غير صحيح (401 أو 403 برسالة "Bad credentials"/صلاحيات)
+   وبين تحديد مؤقت من جتهاب بسبب كثرة الطلبات (403 مع ذكر "rate limit"),
+   والثاني يستاهل إعادة محاولة بدل اعتباره مفتاح خاطئ. */
+async function isRateLimit(res) {
+  try {
+    var j = await res.clone().json();
+    var msg = (j && j.message) ? j.message.toLowerCase() : '';
+    return msg.indexOf('rate limit') !== -1 || msg.indexOf('abuse') !== -1;
+  } catch (e) { return false; }
+}
+
+async function requestWithRetry(url, options) {
+  var attempts = 0;
+  while (true) {
+    attempts++;
+    var res = await fetch(url, options);
+    if (res.status === 403 && await isRateLimit(res) && attempts < 5) {
+      await sleep(attempts * 2500);
+      continue;
+    }
+    return res;
+  }
+}
+
+async function throwFor403(res) {
+  if (await isRateLimit(res)) { throw new Error('ratelimit'); }
+  throw new Error('auth');
+}
+
 async function putFile(path, b64, message) {
   var sha;
-  var g = await fetch(ghUrl(path) + '?ref=' + BRANCH + '&t=' + Date.now(), { headers: ghHeaders() });
+  var g = await requestWithRetry(ghUrl(path) + '?ref=' + BRANCH + '&t=' + Date.now(), { headers: ghHeaders() });
   if (g.status === 200) { sha = (await g.json()).sha; }
-  else if (g.status === 401 || g.status === 403) { throw new Error('auth'); }
+  else if (g.status === 401) { throw new Error('auth'); }
+  else if (g.status === 403) { await throwFor403(g); }
   else if (g.status !== 404) { throw new Error('get ' + g.status); }
 
   var body = { message: message, content: b64, branch: BRANCH };
   if (sha) { body.sha = sha; }
-  var r = await fetch(ghUrl(path), {
+  var r = await requestWithRetry(ghUrl(path), {
     method: 'PUT',
     headers: ghHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body)
   });
-  if (r.status === 401 || r.status === 403) { throw new Error('auth'); }
+  if (r.status === 401) { throw new Error('auth'); }
+  if (r.status === 403) { await throwFor403(r); }
   if (!r.ok) { throw new Error('put ' + r.status); }
 }
 
@@ -630,6 +663,8 @@ $('saveBtn').onclick = async function () {
     for (var k = 0; k < names.length; k++) {
       setMsg(m, 'رفع الصورة ' + (k + 1) + ' من ' + names.length + '...', '');
       await putFile(names[k], pending[names[k]], 'إضافة صورة منتج');
+      delete pending[names[k]];
+      if (k < names.length - 1) { await sleep(600); }
     }
 
     setMsg(m, 'حفظ البيانات...', '');
@@ -646,12 +681,13 @@ $('saveBtn').onclick = async function () {
     };
     await putFile('data.json', toB64(JSON.stringify(clean, null, 2)), 'تحديث بيانات الموقع');
 
-    names.forEach(function (n) { delete pending[n]; });
     setMsg(m, 'تم الحفظ. التغييرات تظهر للعملاء بعد دقيقة تقريباً', 'ok');
   } catch (e) {
     if (e.message === 'auth') {
       setMsg(m, 'المفتاح غير صحيح أو ما عنده صلاحية الكتابة. أنشئ مفتاح جديد', 'err');
       $('tokenBox').open = true;
+    } else if (e.message === 'ratelimit') {
+      setMsg(m, 'جيت هاب أوقف الطلبات مؤقتاً بسبب كثرتها. انتظر دقيقة واضغط "حفظ ونشر الموقع" مرة ثانية، الصور اللي رفعت لن تُرفع مرتين', 'err');
     } else {
       setMsg(m, 'فشل الحفظ (' + e.message + '). تأكد من الإنترنت وحاول مرة ثانية', 'err');
     }
