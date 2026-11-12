@@ -15,14 +15,21 @@ body { font-family: Tahoma, Arial, sans-serif; background: #faf5ec; color: #2b2b
 label { display: block; font-size: 14px; margin: 10px 0 4px; color: #555; }
 input[type=text], input[type=password], input[type=number], input[type=tel] { width: 100%; padding: 11px; font-size: 16px; border: 1px solid #cfc7bb; border-radius: 8px; }
 button { cursor: pointer; font-family: inherit; font-size: 15px; border: 0; border-radius: 8px; padding: 10px 16px; background: #5c1424; color: #fff; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.gray { background: #8a8f94; }
 button.red { background: #b3392f; }
 button.gold { background: #c9a24b; }
 .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-.product { border: 1px solid #e3ddd2; border-radius: 10px; padding: 10px; margin-top: 12px; display: grid; grid-template-columns: 90px 1fr; gap: 10px; }
-.product img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; background: #eee; }
+.product { border: 1px solid #e3ddd2; border-radius: 10px; padding: 10px; margin-top: 12px; }
 .product .fields { display: grid; grid-template-columns: 70px 1fr 90px; gap: 8px; }
-.product .acts { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.product .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.thumb { position: relative; width: 74px; height: 74px; border-radius: 8px; overflow: hidden; background: #eee; border: 1px solid #e3ddd2; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb .num { position: absolute; top: 2px; right: 2px; background: rgba(61,11,23,0.75); color: #e6cc8a; font-size: 10px; font-weight: bold; padding: 0 5px; border-radius: 8px; line-height: 15px; }
+.thumb .rm { position: absolute; bottom: 2px; left: 2px; background: rgba(179,57,47,0.9); color: #fff; border: none; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; line-height: 20px; padding: 0; text-align: center; }
+.thumb.add { display: flex; align-items: center; justify-content: center; border: 1px dashed #c9a24b; background: #fff; color: #c9a24b; font-size: 24px; cursor: pointer; }
+.hint { font-size: 12px; color: #8a7a6b; margin-top: 6px; }
 .msg { margin-top: 10px; font-size: 14px; line-height: 1.8; }
 .ok { color: #1b7a3b; }
 .err { color: #b3392f; }
@@ -32,9 +39,8 @@ details summary { cursor: pointer; font-weight: bold; color: #5c1424; }
 ol { margin: 10px 20px 0 0; line-height: 2; font-size: 14px; }
 a { color: #25406b; }
 @media (max-width: 520px) {
-  .product { grid-template-columns: 70px 1fr; }
-  .product img { width: 70px; height: 70px; }
   .product .fields { grid-template-columns: 60px 1fr 80px; }
+  .thumb, .thumb.add { width: 64px; height: 64px; }
 }
 </style>
 </head>
@@ -76,6 +82,7 @@ a { color: #25406b; }
 
   <div class="box">
     <h2>المنتجات</h2>
+    <p class="hint">كل منتج يقبل من صورة وحدة إلى 4 صور. إذا فيه أكثر من صورة، تظهر للعميل قابلة للتنقل يمين ويسار.</p>
     <div id="productsList"></div>
     <div class="row">
       <button class="gold" id="addBtn">+ إضافة منتج جديد</button>
@@ -125,6 +132,7 @@ a { color: #25406b; }
 var OWNER = 'alaqrab009';
 var REPO = 'underwear-store';
 var BRANCH = 'main';
+var MAX_IMAGES = 4;
 
 var data = null;
 var pending = {};
@@ -191,6 +199,15 @@ async function loadFresh() {
   } catch (e) { return null; }
 }
 
+function normalizeProducts() {
+  data.products.forEach(function (p) {
+    if (!p.images) {
+      p.images = p.image ? [p.image] : [];
+      delete p.image;
+    }
+  });
+}
+
 /* ---------- الدخول ---------- */
 
 async function login() {
@@ -209,6 +226,7 @@ async function login() {
   }
   var fresh = await loadFresh();
   if (fresh) { data = fresh; }
+  normalizeProducts();
   $('loginBox').hidden = true;
   $('panel').hidden = false;
   $('saveBar').hidden = false;
@@ -226,8 +244,8 @@ function fillForm() {
   renderProducts();
 }
 
-function imgSrc(p) {
-  return previews[p.image] || p.image || '';
+function imgSrc(path) {
+  return previews[path] || path || '';
 }
 
 function renderProducts() {
@@ -236,10 +254,6 @@ function renderProducts() {
   data.products.forEach(function (p, i) {
     var el = document.createElement('div');
     el.className = 'product';
-
-    var img = document.createElement('img');
-    img.src = imgSrc(p);
-    img.alt = '';
 
     var fields = document.createElement('div');
     fields.className = 'fields';
@@ -266,31 +280,73 @@ function renderProducts() {
     fields.appendChild(nameIn);
     fields.appendChild(priceIn);
 
-    var acts = document.createElement('div');
-    acts.className = 'acts';
+    var thumbs = document.createElement('div');
+    thumbs.className = 'thumbs';
+
+    function renderThumbs() {
+      thumbs.innerHTML = '';
+      p.images.forEach(function (path, idx) {
+        var t = document.createElement('div');
+        t.className = 'thumb';
+
+        var im = document.createElement('img');
+        im.src = imgSrc(path);
+        t.appendChild(im);
+
+        var num = document.createElement('span');
+        num.className = 'num';
+        num.textContent = idx + 1;
+        t.appendChild(num);
+
+        var rm = document.createElement('button');
+        rm.className = 'rm';
+        rm.type = 'button';
+        rm.textContent = '×';
+        rm.onclick = function () {
+          p.images.splice(idx, 1);
+          renderThumbs();
+        };
+        t.appendChild(rm);
+
+        thumbs.appendChild(t);
+      });
+
+      if (p.images.length < MAX_IMAGES) {
+        var addT = document.createElement('div');
+        addT.className = 'thumb add';
+        addT.textContent = '+';
+        addT.onclick = function () { file.click(); };
+        thumbs.appendChild(addT);
+      }
+    }
 
     var file = document.createElement('input');
     file.type = 'file';
     file.accept = 'image/*';
+    file.multiple = true;
     file.style.display = 'none';
     file.onchange = async function () {
-      if (!file.files[0]) { return; }
-      try {
-        var res = await compressImage(file.files[0]);
-        var name = 'images/p' + Date.now() + '.jpg';
-        pending[name] = res.b64;
-        previews[name] = res.dataUrl;
-        p.image = name;
-        img.src = res.dataUrl;
-      } catch (e) {
-        alert('تعذر قراءة الصورة، جرب صورة ثانية');
+      var files = Array.prototype.slice.call(file.files || []);
+      file.value = '';
+      for (var f = 0; f < files.length; f++) {
+        if (p.images.length >= MAX_IMAGES) { break; }
+        try {
+          var res = await compressImage(files[f]);
+          var name = 'images/p' + Date.now() + '_' + f + '.jpg';
+          pending[name] = res.b64;
+          previews[name] = res.dataUrl;
+          p.images.push(name);
+        } catch (e) {
+          alert('تعذر قراءة إحدى الصور، تم تجاهلها');
+        }
       }
+      renderThumbs();
     };
 
-    var picBtn = document.createElement('button');
-    picBtn.className = 'gray';
-    picBtn.textContent = p.image ? 'تغيير الصورة' : 'اختيار صورة';
-    picBtn.onclick = function () { file.click(); };
+    renderThumbs();
+
+    var acts = document.createElement('div');
+    acts.className = 'acts';
 
     var up = document.createElement('button');
     up.className = 'gray';
@@ -304,7 +360,7 @@ function renderProducts() {
 
     var del = document.createElement('button');
     del.className = 'red';
-    del.textContent = 'حذف';
+    del.textContent = 'حذف المنتج';
     del.onclick = function () {
       if (confirm('حذف المنتج رقم ' + p.id + '؟')) {
         data.products.splice(i, 1);
@@ -312,15 +368,14 @@ function renderProducts() {
       }
     };
 
-    acts.appendChild(file);
-    acts.appendChild(picBtn);
     acts.appendChild(up);
     acts.appendChild(down);
     acts.appendChild(del);
 
-    el.appendChild(img);
     el.appendChild(fields);
+    el.appendChild(thumbs);
     el.appendChild(acts);
+    el.appendChild(file);
     box.appendChild(el);
   });
 }
@@ -337,7 +392,7 @@ function moveProduct(i, dir) {
 $('addBtn').onclick = function () {
   var max = 0;
   data.products.forEach(function (p) { if (p.id > max) { max = p.id; } });
-  data.products.push({ id: max + 1, name: '', price: 0, image: '' });
+  data.products.push({ id: max + 1, name: '', price: 0, images: [] });
   renderProducts();
   window.scrollTo(0, document.body.scrollHeight);
 };
@@ -459,7 +514,7 @@ $('saveBtn').onclick = async function () {
   for (var i = 0; i < data.products.length; i++) {
     var p = data.products[i];
     if (!p.name.trim()) { setMsg(m, 'المنتج رقم ' + p.id + ' بدون اسم', 'err'); return; }
-    if (!p.image) { setMsg(m, 'المنتج رقم ' + p.id + ' بدون صورة', 'err'); return; }
+    if (!p.images || !p.images.length) { setMsg(m, 'المنتج رقم ' + p.id + ' بدون صورة', 'err'); return; }
     if (!p.id || ids[p.id]) { setMsg(m, 'الرقم ' + p.id + ' مكرر أو غير صحيح', 'err'); return; }
     ids[p.id] = true;
   }
@@ -473,7 +528,9 @@ $('saveBtn').onclick = async function () {
   btn.disabled = true;
   try {
     var used = {};
-    data.products.forEach(function (p) { used[p.image] = true; });
+    data.products.forEach(function (p) {
+      p.images.forEach(function (path) { used[path] = true; });
+    });
     var names = Object.keys(pending).filter(function (n) { return used[n]; });
 
     for (var k = 0; k < names.length; k++) {
@@ -489,7 +546,7 @@ $('saveBtn').onclick = async function () {
       whatsapp: data.whatsapp,
       pinHash: data.pinHash,
       products: data.products.map(function (p) {
-        return { id: p.id, name: p.name.trim(), price: p.price, image: p.image };
+        return { id: p.id, name: p.name.trim(), price: p.price, images: p.images.slice() };
       })
     };
     await putFile('data.json', toB64(JSON.stringify(clean, null, 2)), 'تحديث بيانات الموقع');

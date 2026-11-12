@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
@@ -40,13 +40,112 @@
       return u.substring(0, u.lastIndexOf('/') + 1);
     }
 
+    function productImages(p) {
+      if (p.images && p.images.length) { return p.images; }
+      if (p.image) { return [p.image]; }
+      return [];
+    }
+
     function buildWhatsappLink(p) {
-      var imageUrl = siteBase() + p.image;
+      var imgs = productImages(p);
+      var imageUrl = imgs.length ? (siteBase() + imgs[0]) : '';
       var msg = 'السلام عليكم، أبغى أطلب المنتج رقم ' + p.id + '\n' +
                 'الاسم: ' + p.name + '\n' +
-                'السعر: ' + p.price + ' ريال\n' +
-                'رابط الصورة: ' + imageUrl;
+                'السعر: ' + p.price + ' ريال' +
+                (imageUrl ? '\nرابط الصورة: ' + imageUrl : '');
       return 'https://wa.me/' + DATA.whatsapp + '?text=' + encodeURIComponent(msg);
+    }
+
+    function buildCarousel(p) {
+      var imgs = productImages(p);
+      var wrap = document.createElement('div');
+      wrap.className = 'img-wrap';
+
+      var track = document.createElement('div');
+      track.className = 'img-track';
+      imgs.forEach(function (src) {
+        var img = document.createElement('img');
+        img.src = src;
+        img.alt = p.name;
+        img.draggable = false;
+        track.appendChild(img);
+      });
+      wrap.appendChild(track);
+
+      var current = 0;
+
+      function update(animate) {
+        track.style.transition = animate ? 'transform 0.35s ease' : 'none';
+        track.style.transform = 'translateX(' + (current * 100) + '%)';
+        if (dots) {
+          Array.prototype.forEach.call(dots.children, function (d, i) {
+            d.classList.toggle('active', i === current);
+          });
+        }
+      }
+
+      function go(i) {
+        if (imgs.length === 0) { return; }
+        current = (i + imgs.length) % imgs.length;
+        update(true);
+      }
+
+      var dots = null;
+      if (imgs.length > 1) {
+        var prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'nav-btn prev';
+        prevBtn.innerHTML = '&#10094;';
+        prevBtn.setAttribute('aria-label', 'الصورة السابقة');
+        prevBtn.onclick = function (e) { e.stopPropagation(); go(current - 1); };
+
+        var nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'nav-btn next';
+        nextBtn.innerHTML = '&#10095;';
+        nextBtn.setAttribute('aria-label', 'الصورة التالية');
+        nextBtn.onclick = function (e) { e.stopPropagation(); go(current + 1); };
+
+        dots = document.createElement('div');
+        dots.className = 'dots';
+        imgs.forEach(function (_, i) {
+          var d = document.createElement('span');
+          d.className = 'dot' + (i === 0 ? ' active' : '');
+          d.onclick = function (e) { e.stopPropagation(); go(i); };
+          dots.appendChild(d);
+        });
+
+        var countBadge = document.createElement('span');
+        countBadge.className = 'count-badge';
+        countBadge.textContent = '1/' + imgs.length;
+
+        wrap.appendChild(prevBtn);
+        wrap.appendChild(nextBtn);
+        wrap.appendChild(dots);
+        wrap.appendChild(countBadge);
+
+        var startX = null;
+        wrap.addEventListener('touchstart', function (e) {
+          startX = e.touches[0].clientX;
+        }, { passive: true });
+        wrap.addEventListener('touchend', function (e) {
+          if (startX === null) { return; }
+          var diff = e.changedTouches[0].clientX - startX;
+          if (Math.abs(diff) > 40) {
+            if (diff > 0) { go(current - 1); } else { go(current + 1); }
+          }
+          startX = null;
+        });
+
+        var origUpdate = update;
+        update = function (animate) {
+          origUpdate(animate);
+          countBadge.textContent = (current + 1) + '/' + imgs.length;
+        };
+      }
+
+      update(false);
+      return wrap;
     }
 
     function render(list) {
@@ -64,13 +163,6 @@
         badge.className = 'badge';
         badge.textContent = p.id;
 
-        var wrap = document.createElement('div');
-        wrap.className = 'img-wrap';
-        var img = document.createElement('img');
-        img.src = p.image;
-        img.alt = p.name;
-        wrap.appendChild(img);
-
         var h3 = document.createElement('h3');
         h3.textContent = p.name;
 
@@ -86,7 +178,7 @@
         btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 1.8a8.2 8.2 0 1 1-4.2 15.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 0 1 12 3.800zm-3.500 3.900c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.300s1 2.700 1.200 2.900c.1.2 2 3.100 4.900 4.300 2.400 1 2.900.8 3.400.7.5 0 1.700-.7 1.900-1.300.2-.700.2-1.200.2-1.300-.1-.1-.3-.2-.6-.4l-2-1c-.3-.1-.5-.1-.7.2l-.9 1.100c-.2.2-.3.2-.6.1a6.700 6.700 0 0 1-3.300-2.900c-.2-.4.2-.4.7-1.300.1-.2 0-.3 0-.5l-.9-2.200c-.2-.5-.4-.5-.6-.5h-.5z"/></svg><span>اطلب عبر واتساب</span>';
 
         card.appendChild(badge);
-        card.appendChild(wrap);
+        card.appendChild(buildCarousel(p));
         card.appendChild(h3);
         card.appendChild(price);
         card.appendChild(btn);
