@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>متجر الملابس الداخلية</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -80,7 +83,7 @@
         btn.target = '_blank';
         btn.rel = 'noopener';
         btn.href = buildWhatsappLink(p);
-        btn.textContent = 'اطلب عبر واتساب';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 1.8a8.2 8.2 0 1 1-4.2 15.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 0 1 12 3.800zm-3.500 3.900c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.300s1 2.700 1.200 2.900c.1.2 2 3.100 4.900 4.300 2.400 1 2.900.8 3.400.7.5 0 1.700-.7 1.900-1.300.2-.700.2-1.200.2-1.300-.1-.1-.3-.2-.6-.4l-2-1c-.3-.1-.5-.1-.7.2l-.9 1.100c-.2.2-.3.2-.6.1a6.700 6.700 0 0 1-3.300-2.900c-.2-.4.2-.4.7-1.300.1-.2 0-.3 0-.5l-.9-2.200c-.2-.5-.4-.5-.6-.5h-.5z"/></svg><span>اطلب عبر واتساب</span>';
 
         card.appendChild(badge);
         card.appendChild(wrap);
