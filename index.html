@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>متجر الملابس الداخلية</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="top">
+    <h1>متجر الملابس الداخلية</h1>
+    <p>اختر المنتج واضغط زر واتساب لطلبه مباشرة</p>
+  </header>
+
+  <main>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="ابحث برقم المنتج أو اسمه...">
+    </div>
+    <div class="grid" id="productsGrid"></div>
+    <p class="empty" id="emptyMsg" style="display:none;">لا توجد منتجات مطابقة</p>
+  </main>
+
+  <footer>
+    <p>جميع الحقوق محفوظة</p>
+  </footer>
+
+  <script src="products.js"></script>
+  <script>
+    var grid = document.getElementById('productsGrid');
+    var emptyMsg = document.getElementById('emptyMsg');
+    var searchInput = document.getElementById('searchInput');
+
+    function buildWhatsappLink(p) {
+      var siteUrl = window.location.href.split('?')[0].split('#')[0];
+      if (siteUrl.indexOf('index.html') !== -1) {
+        siteUrl = siteUrl.replace('index.html', '');
+      }
+      if (siteUrl.charAt(siteUrl.length - 1) !== '/') {
+        siteUrl = siteUrl + '/';
+      }
+      var imageUrl = siteUrl + p.image;
+      var msg = 'السلام عليكم، أبغى أطلب المنتج رقم ' + p.id + '\n' +
+                'الاسم: ' + p.name + '\n' +
+                'السعر: ' + p.price + ' ريال\n' +
+                'رابط الصورة: ' + imageUrl;
+      return 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg);
+    }
+
+    function render(list) {
+      grid.innerHTML = '';
+      if (list.length === 0) {
+        emptyMsg.style.display = 'block';
+        return;
+      }
+      emptyMsg.style.display = 'none';
+      list.forEach(function (p) {
+        var card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML =
+          '<div class="badge">' + p.id + '</div>' +
+          '<div class="img-wrap"><img src="' + p.image + '" alt="' + p.name + '"></div>' +
+          '<h3>' + p.name + '</h3>' +
+          '<p class="price">' + p.price + ' ريال</p>' +
+          '<a class="wa-btn" target="_blank" href="' + buildWhatsappLink(p) + '">اطلب عبر واتساب</a>';
+        grid.appendChild(card);
+      });
+    }
+
+    searchInput.addEventListener('input', function () {
+      var q = searchInput.value.trim().toLowerCase();
+      var filtered = PRODUCTS.filter(function (p) {
+        return String(p.id).indexOf(q) !== -1 || p.name.toLowerCase().indexOf(q) !== -1;
+      });
+      render(filtered);
+    });
+
+    render(PRODUCTS);
+  </script>
+</body>
+</html>
