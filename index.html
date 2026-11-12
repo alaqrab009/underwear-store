@@ -20,6 +20,7 @@
     <div class="search-box">
       <input type="text" id="searchInput" placeholder="ابحث برقم المنتج أو اسمه...">
     </div>
+    <div class="cat-tabs" id="catTabs"></div>
     <div class="grid" id="productsGrid"></div>
     <p class="empty" id="emptyMsg" style="display:none;">لا توجد منتجات مطابقة</p>
   </main>
@@ -34,6 +35,10 @@
     var grid = document.getElementById('productsGrid');
     var emptyMsg = document.getElementById('emptyMsg');
     var searchInput = document.getElementById('searchInput');
+    var catTabs = document.getElementById('catTabs');
+    var ALL = 'الكل';
+    var NONE = 'بدون قسم';
+    var activeCategory = ALL;
 
     function siteBase() {
       var u = window.location.href.split('?')[0].split('#')[0];
@@ -148,6 +153,44 @@
       return wrap;
     }
 
+    function currentList() {
+      var list = DATA.products;
+      if (activeCategory === NONE) {
+        list = list.filter(function (p) { return !p.category; });
+      } else if (activeCategory !== ALL) {
+        list = list.filter(function (p) { return p.category === activeCategory; });
+      }
+      var q = searchInput.value.trim().toLowerCase();
+      if (q) {
+        list = list.filter(function (p) {
+          return String(p.id).indexOf(q) !== -1 || p.name.toLowerCase().indexOf(q) !== -1;
+        });
+      }
+      return list;
+    }
+
+    function buildTabs() {
+      var cats = Array.isArray(DATA.categories) ? DATA.categories : [];
+      catTabs.innerHTML = '';
+      if (cats.length === 0) { return; }
+      var hasUncategorized = DATA.products.some(function (p) { return !p.category; });
+      var names = [ALL].concat(cats).concat(hasUncategorized ? [NONE] : []);
+      names.forEach(function (name) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cat-tab' + (name === activeCategory ? ' active' : '');
+        btn.textContent = name;
+        btn.onclick = function () {
+          activeCategory = name;
+          Array.prototype.forEach.call(catTabs.children, function (c) {
+            c.classList.toggle('active', c === btn);
+          });
+          render(currentList());
+        };
+        catTabs.appendChild(btn);
+      });
+    }
+
     function render(list) {
       grid.innerHTML = '';
       if (list.length === 0) {
@@ -191,15 +234,12 @@
       document.getElementById('siteSubtitle').textContent = DATA.subtitle;
       document.getElementById('siteFooter').textContent = DATA.footer;
       document.title = DATA.title;
-      render(DATA.products);
+      buildTabs();
+      render(currentList());
     }
 
     searchInput.addEventListener('input', function () {
-      var q = searchInput.value.trim().toLowerCase();
-      var filtered = DATA.products.filter(function (p) {
-        return String(p.id).indexOf(q) !== -1 || p.name.toLowerCase().indexOf(q) !== -1;
-      });
-      render(filtered);
+      render(currentList());
     });
 
     fetch('data.json?t=' + Date.now())

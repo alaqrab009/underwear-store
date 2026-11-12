@@ -30,6 +30,13 @@ button.gold { background: #c9a24b; }
 .thumb .rm { position: absolute; bottom: 2px; left: 2px; background: rgba(179,57,47,0.9); color: #fff; border: none; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; line-height: 20px; padding: 0; text-align: center; }
 .thumb.add { display: flex; align-items: center; justify-content: center; border: 1px dashed #c9a24b; background: #fff; color: #c9a24b; font-size: 24px; cursor: pointer; }
 .hint { font-size: 12px; color: #8a7a6b; margin-top: 6px; }
+select { width: 100%; padding: 11px; font-size: 15px; border: 1px solid #cfc7bb; border-radius: 8px; background: #fff; font-family: inherit; color: #2b2b2b; }
+.cat-chip { display: inline-flex; align-items: center; gap: 6px; background: #faf5ec; border: 1px solid #e3ddd2; border-radius: 20px; padding: 6px 8px 6px 14px; font-size: 14px; margin: 4px 6px 0 0; }
+.cat-chip button { background: #b3392f; color: #fff; border: none; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; line-height: 20px; padding: 0; text-align: center; }
+.cat-add { display: flex; gap: 8px; margin-top: 12px; }
+.cat-add input { flex: 1; }
+.cat-list { display: flex; flex-wrap: wrap; }
+.cat-empty { font-size: 13px; color: #8a7a6b; }
 .msg { margin-top: 10px; font-size: 14px; line-height: 1.8; }
 .ok { color: #1b7a3b; }
 .err { color: #b3392f; }
@@ -78,6 +85,17 @@ a { color: #25406b; }
     <label>الرقم بالصيغة الدولية، مثال: 966554645623</label>
     <input type="tel" id="fWhatsapp" inputmode="numeric">
     <p class="msg" id="waHint"></p>
+  </div>
+
+  <div class="box">
+    <h2>أقسام المتجر</h2>
+    <p class="hint">أنشئ أقسام مثل "نسائي" و"رجالي"، وبعدها اختر لكل منتج قسمه من القائمة في بطاقته بالأسفل. المنتج بدون قسم يظهر في "بدون قسم".</p>
+    <div class="cat-list" id="catList"></div>
+    <div class="cat-add">
+      <input type="text" id="catInput" placeholder="اسم القسم الجديد">
+      <button class="gold" id="catAddBtn">إضافة قسم</button>
+    </div>
+    <p class="msg" id="catMsg"></p>
   </div>
 
   <div class="box">
@@ -200,11 +218,13 @@ async function loadFresh() {
 }
 
 function normalizeProducts() {
+  if (!Array.isArray(data.categories)) { data.categories = []; }
   data.products.forEach(function (p) {
     if (!p.images) {
       p.images = p.image ? [p.image] : [];
       delete p.image;
     }
+    if (typeof p.category !== 'string') { p.category = ''; }
   });
 }
 
@@ -241,8 +261,64 @@ function fillForm() {
   $('fSubtitle').value = data.subtitle;
   $('fFooter').value = data.footer;
   $('fWhatsapp').value = data.whatsapp;
+  renderCategories();
   renderProducts();
 }
+
+/* ---------- الأقسام ---------- */
+
+function renderCategories() {
+  var box = $('catList');
+  box.innerHTML = '';
+  if (data.categories.length === 0) {
+    var p = document.createElement('p');
+    p.className = 'cat-empty';
+    p.textContent = 'ما فيه أقسام بعد. أضف أول قسم من الأسفل.';
+    box.appendChild(p);
+  }
+  data.categories.forEach(function (cat, idx) {
+    var chip = document.createElement('span');
+    chip.className = 'cat-chip';
+
+    var label = document.createElement('span');
+    label.textContent = cat;
+    chip.appendChild(label);
+
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = '×';
+    del.onclick = function () {
+      var inUse = data.products.filter(function (p) { return p.category === cat; }).length;
+      var msg = inUse > 0
+        ? ('حذف قسم "' + cat + '"؟ ' + inUse + ' منتج فيه راح يرجع بدون قسم.')
+        : ('حذف قسم "' + cat + '"؟');
+      if (!confirm(msg)) { return; }
+      data.categories.splice(idx, 1);
+      data.products.forEach(function (p) { if (p.category === cat) { p.category = ''; } });
+      renderCategories();
+      renderProducts();
+    };
+    chip.appendChild(del);
+
+    box.appendChild(chip);
+  });
+}
+
+$('catAddBtn').onclick = function () {
+  var name = $('catInput').value.trim();
+  var m = $('catMsg');
+  if (!name) { setMsg(m, 'اكتب اسم القسم أول', 'err'); return; }
+  if (data.categories.indexOf(name) !== -1) { setMsg(m, 'هذا القسم موجود مسبقاً', 'err'); return; }
+  data.categories.push(name);
+  $('catInput').value = '';
+  setMsg(m, 'تم إضافة القسم', 'ok');
+  renderCategories();
+  renderProducts();
+};
+
+$('catInput').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); $('catAddBtn').click(); }
+});
 
 function imgSrc(path) {
   return previews[path] || path || '';
@@ -279,6 +355,22 @@ function renderProducts() {
     fields.appendChild(idIn);
     fields.appendChild(nameIn);
     fields.appendChild(priceIn);
+
+    var catLabel = document.createElement('label');
+    catLabel.textContent = 'القسم';
+    var catSel = document.createElement('select');
+    var noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = 'بدون قسم';
+    catSel.appendChild(noneOpt);
+    data.categories.forEach(function (cat) {
+      var opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      if (p.category === cat) { opt.selected = true; }
+      catSel.appendChild(opt);
+    });
+    catSel.onchange = function () { p.category = catSel.value; };
 
     var thumbs = document.createElement('div');
     thumbs.className = 'thumbs';
@@ -373,6 +465,8 @@ function renderProducts() {
     acts.appendChild(del);
 
     el.appendChild(fields);
+    el.appendChild(catLabel);
+    el.appendChild(catSel);
     el.appendChild(thumbs);
     el.appendChild(acts);
     el.appendChild(file);
@@ -392,7 +486,7 @@ function moveProduct(i, dir) {
 $('addBtn').onclick = function () {
   var max = 0;
   data.products.forEach(function (p) { if (p.id > max) { max = p.id; } });
-  data.products.push({ id: max + 1, name: '', price: 0, images: [] });
+  data.products.push({ id: max + 1, name: '', price: 0, category: '', images: [] });
   renderProducts();
   window.scrollTo(0, document.body.scrollHeight);
 };
@@ -545,8 +639,9 @@ $('saveBtn').onclick = async function () {
       footer: data.footer,
       whatsapp: data.whatsapp,
       pinHash: data.pinHash,
+      categories: data.categories.slice(),
       products: data.products.map(function (p) {
-        return { id: p.id, name: p.name.trim(), price: p.price, images: p.images.slice() };
+        return { id: p.id, name: p.name.trim(), price: p.price, category: p.category || '', images: p.images.slice() };
       })
     };
     await putFile('data.json', toB64(JSON.stringify(clean, null, 2)), 'تحديث بيانات الموقع');
