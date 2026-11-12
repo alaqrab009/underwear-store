@@ -9,8 +9,8 @@
 <body>
 
   <header class="top">
-    <h1>متجر الملابس الداخلية</h1>
-    <p>اختر المنتج واضغط زر واتساب لطلبه مباشرة</p>
+    <h1 id="siteTitle">متجر الملابس الداخلية</h1>
+    <p id="siteSubtitle"></p>
   </header>
 
   <main>
@@ -22,29 +22,28 @@
   </main>
 
   <footer>
-    <p>جميع الحقوق محفوظة</p>
+    <p id="siteFooter"></p>
+    <a class="admin-link" href="admin.html">إدارة</a>
   </footer>
 
-  <script src="products.js"></script>
   <script>
+    var DATA = null;
     var grid = document.getElementById('productsGrid');
     var emptyMsg = document.getElementById('emptyMsg');
     var searchInput = document.getElementById('searchInput');
 
+    function siteBase() {
+      var u = window.location.href.split('?')[0].split('#')[0];
+      return u.substring(0, u.lastIndexOf('/') + 1);
+    }
+
     function buildWhatsappLink(p) {
-      var siteUrl = window.location.href.split('?')[0].split('#')[0];
-      if (siteUrl.indexOf('index.html') !== -1) {
-        siteUrl = siteUrl.replace('index.html', '');
-      }
-      if (siteUrl.charAt(siteUrl.length - 1) !== '/') {
-        siteUrl = siteUrl + '/';
-      }
-      var imageUrl = siteUrl + p.image;
+      var imageUrl = siteBase() + p.image;
       var msg = 'السلام عليكم، أبغى أطلب المنتج رقم ' + p.id + '\n' +
                 'الاسم: ' + p.name + '\n' +
                 'السعر: ' + p.price + ' ريال\n' +
                 'رابط الصورة: ' + imageUrl;
-      return 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg);
+      return 'https://wa.me/' + DATA.whatsapp + '?text=' + encodeURIComponent(msg);
     }
 
     function render(list) {
@@ -57,25 +56,64 @@
       list.forEach(function (p) {
         var card = document.createElement('div');
         card.className = 'card';
-        card.innerHTML =
-          '<div class="badge">' + p.id + '</div>' +
-          '<div class="img-wrap"><img src="' + p.image + '" alt="' + p.name + '"></div>' +
-          '<h3>' + p.name + '</h3>' +
-          '<p class="price">' + p.price + ' ريال</p>' +
-          '<a class="wa-btn" target="_blank" href="' + buildWhatsappLink(p) + '">اطلب عبر واتساب</a>';
+
+        var badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = p.id;
+
+        var wrap = document.createElement('div');
+        wrap.className = 'img-wrap';
+        var img = document.createElement('img');
+        img.src = p.image;
+        img.alt = p.name;
+        wrap.appendChild(img);
+
+        var h3 = document.createElement('h3');
+        h3.textContent = p.name;
+
+        var price = document.createElement('p');
+        price.className = 'price';
+        price.textContent = p.price + ' ريال';
+
+        var btn = document.createElement('a');
+        btn.className = 'wa-btn';
+        btn.target = '_blank';
+        btn.rel = 'noopener';
+        btn.href = buildWhatsappLink(p);
+        btn.textContent = 'اطلب عبر واتساب';
+
+        card.appendChild(badge);
+        card.appendChild(wrap);
+        card.appendChild(h3);
+        card.appendChild(price);
+        card.appendChild(btn);
         grid.appendChild(card);
       });
     }
 
+    function applyData() {
+      document.getElementById('siteTitle').textContent = DATA.title;
+      document.getElementById('siteSubtitle').textContent = DATA.subtitle;
+      document.getElementById('siteFooter').textContent = DATA.footer;
+      document.title = DATA.title;
+      render(DATA.products);
+    }
+
     searchInput.addEventListener('input', function () {
       var q = searchInput.value.trim().toLowerCase();
-      var filtered = PRODUCTS.filter(function (p) {
+      var filtered = DATA.products.filter(function (p) {
         return String(p.id).indexOf(q) !== -1 || p.name.toLowerCase().indexOf(q) !== -1;
       });
       render(filtered);
     });
 
-    render(PRODUCTS);
+    fetch('data.json?t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) { DATA = d; applyData(); })
+      .catch(function () {
+        emptyMsg.textContent = 'تعذر تحميل المنتجات، حدّث الصفحة';
+        emptyMsg.style.display = 'block';
+      });
   </script>
 </body>
 </html>

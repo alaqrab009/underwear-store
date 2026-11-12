@@ -142,3 +142,16 @@ footer {
     transform: scale(1.35);
   }
 }
+
+.admin-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: #ffffff;
+  opacity: 0.35;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.admin-link:hover {
+  opacity: 0.8;
+}

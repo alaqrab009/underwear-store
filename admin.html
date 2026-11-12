@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>لوحة الإدارة</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Tahoma, Arial, sans-serif; background: #f6f3ef; color: #2b2b2b; padding-bottom: 90px; }
+.bar { background: #1f3a34; color: #fff; padding: 16px; text-align: center; font-size: 20px; font-weight: bold; }
+.wrap { max-width: 800px; margin: 0 auto; padding: 16px; }
+.box { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.box h2 { font-size: 18px; margin-bottom: 12px; color: #1f3a34; }
+label { display: block; font-size: 14px; margin: 10px 0 4px; color: #555; }
+input[type=text], input[type=password], input[type=number], input[type=tel] { width: 100%; padding: 11px; font-size: 16px; border: 1px solid #cfc7bb; border-radius: 8px; }
+button { cursor: pointer; font-family: inherit; font-size: 15px; border: 0; border-radius: 8px; padding: 10px 16px; background: #1f3a34; color: #fff; }
+button.gray { background: #8a8f94; }
+button.red { background: #b3392f; }
+button.gold { background: #c9a24b; }
+.row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.product { border: 1px solid #e3ddd2; border-radius: 10px; padding: 10px; margin-top: 12px; display: grid; grid-template-columns: 90px 1fr; gap: 10px; }
+.product img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; background: #eee; }
+.product .fields { display: grid; grid-template-columns: 70px 1fr 90px; gap: 8px; }
+.product .acts { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.msg { margin-top: 10px; font-size: 14px; line-height: 1.8; }
+.ok { color: #1b7a3b; }
+.err { color: #b3392f; }
+.savebar { position: fixed; bottom: 0; right: 0; left: 0; background: #fff; border-top: 1px solid #ddd; padding: 12px; text-align: center; }
+.savebar button { width: 100%; max-width: 500px; font-size: 17px; padding: 13px; background: #25d366; }
+details summary { cursor: pointer; font-weight: bold; color: #1f3a34; }
+ol { margin: 10px 20px 0 0; line-height: 2; font-size: 14px; }
+a { color: #25406b; }
+@media (max-width: 520px) {
+  .product { grid-template-columns: 70px 1fr; }
+  .product img { width: 70px; height: 70px; }
+  .product .fields { grid-template-columns: 60px 1fr 80px; }
+}
+</style>
+</head>
+<body>
+
+<div class="bar">لوحة الإدارة</div>
+
+<div class="wrap" id="loginBox">
+  <div class="box">
+    <h2>الدخول</h2>
+    <label>الرقم السري</label>
+    <input type="password" id="pinInput" inputmode="numeric" autocomplete="off">
+    <div class="row">
+      <button id="loginBtn">دخول</button>
+      <a href="index.html">رجوع للموقع</a>
+    </div>
+    <p class="msg err" id="loginMsg"></p>
+  </div>
+</div>
+
+<div class="wrap" id="panel" hidden>
+
+  <div class="box">
+    <h2>نصوص الموقع</h2>
+    <label>العنوان (المربع الأعلى)</label>
+    <input type="text" id="fTitle">
+    <label>السطر تحت العنوان</label>
+    <input type="text" id="fSubtitle">
+    <label>السطر الأسفل</label>
+    <input type="text" id="fFooter">
+  </div>
+
+  <div class="box">
+    <h2>رقم الواتساب لجميع المنتجات</h2>
+    <label>الرقم بالصيغة الدولية، مثال: 966554645623</label>
+    <input type="tel" id="fWhatsapp" inputmode="numeric">
+    <p class="msg" id="waHint"></p>
+  </div>
+
+  <div class="box">
+    <h2>المنتجات</h2>
+    <div id="productsList"></div>
+    <div class="row">
+      <button class="gold" id="addBtn">+ إضافة منتج جديد</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>تغيير الرقم السري</h2>
+    <label>الرقم السري الحالي</label>
+    <input type="password" id="pinOld" inputmode="numeric" autocomplete="off">
+    <label>الرقم السري الجديد (4 أرقام فأكثر)</label>
+    <input type="password" id="pinNew" inputmode="numeric" autocomplete="off">
+    <label>أعد كتابة الجديد</label>
+    <input type="password" id="pinNew2" inputmode="numeric" autocomplete="off">
+    <div class="row"><button id="pinBtn">تغيير الرقم السري</button></div>
+    <p class="msg" id="pinMsg"></p>
+  </div>
+
+  <div class="box">
+    <details id="tokenBox">
+      <summary>مفتاح النشر (مرة واحدة فقط على كل جهاز)</summary>
+      <ol>
+        <li>افتح <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">صفحة إنشاء المفتاح</a>.</li>
+        <li>الاسم: متجر، والمدة: سنة.</li>
+        <li>في خانة Repository access اختر Only select repositories ثم underwear-store.</li>
+        <li>في Permissions افتح Repository permissions وغيّر Contents إلى Read and write.</li>
+        <li>اضغط Generate token وانسخ المفتاح الطويل والصقه هنا.</li>
+      </ol>
+      <label>المفتاح</label>
+      <input type="password" id="tokenInput" autocomplete="off">
+      <div class="row">
+        <button id="tokenBtn">حفظ المفتاح على هذا الجهاز</button>
+        <button class="gray" id="tokenDel">حذف المفتاح</button>
+      </div>
+      <p class="msg" id="tokenMsg"></p>
+    </details>
+  </div>
+
+</div>
+
+<div class="savebar" id="saveBar" hidden>
+  <button id="saveBtn">حفظ ونشر الموقع</button>
+  <p class="msg" id="saveMsg"></p>
+</div>
+
+<script>
+var OWNER = 'alaqrab009';
+var REPO = 'underwear-store';
+var BRANCH = 'main';
+
+var data = null;
+var pending = {};
+var previews = {};
+
+function $(id) { return document.getElementById(id); }
+
+function setMsg(el, text, cls) {
+  el.textContent = text;
+  el.className = 'msg ' + (cls || '');
+}
+
+async function sha256(text) {
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(function (b) {
+    return b.toString(16).padStart(2, '0');
+  }).join('');
+}
+
+function toB64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+function getToken() {
+  try { return localStorage.getItem('gh_token') || ''; } catch (e) { return ''; }
+}
+
+function ghHeaders(extra) {
+  var h = {
+    'Authorization': 'Bearer ' + getToken(),
+    'Accept': 'application/vnd.github+json'
+  };
+  for (var k in (extra || {})) { h[k] = extra[k]; }
+  return h;
+}
+
+function ghUrl(path) {
+  return 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/' + path;
+}
+
+function normalizePhone(s) {
+  var d = String(s).replace(/\D/g, '');
+  if (d.indexOf('00') === 0) { d = d.substring(2); }
+  if (d.length === 10 && d.indexOf('05') === 0) { d = '966' + d.substring(1); }
+  if (d.length === 9 && d.charAt(0) === '5') { d = '966' + d; }
+  return d;
+}
+
+/* ---------- تحميل البيانات ---------- */
+
+async function loadPublic() {
+  var r = await fetch('data.json?t=' + Date.now());
+  return r.json();
+}
+
+async function loadFresh() {
+  if (!getToken()) { return null; }
+  try {
+    var r = await fetch(ghUrl('data.json') + '?ref=' + BRANCH + '&t=' + Date.now(), {
+      headers: ghHeaders({ 'Accept': 'application/vnd.github.raw+json' })
+    });
+    if (!r.ok) { return null; }
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+/* ---------- الدخول ---------- */
+
+async function login() {
+  var pin = $('pinInput').value.trim();
+  if (!pin) { return; }
+  if (!data) {
+    try { data = await loadPublic(); } catch (e) {
+      setMsg($('loginMsg'), 'تعذر تحميل البيانات، حدّث الصفحة', 'err');
+      return;
+    }
+  }
+  var h = await sha256(pin);
+  if (h !== data.pinHash) {
+    setMsg($('loginMsg'), 'الرقم السري غير صحيح', 'err');
+    return;
+  }
+  var fresh = await loadFresh();
+  if (fresh) { data = fresh; }
+  $('loginBox').hidden = true;
+  $('panel').hidden = false;
+  $('saveBar').hidden = false;
+  fillForm();
+  if (!getToken()) { $('tokenBox').open = true; }
+}
+
+/* ---------- تعبئة الواجهة ---------- */
+
+function fillForm() {
+  $('fTitle').value = data.title;
+  $('fSubtitle').value = data.subtitle;
+  $('fFooter').value = data.footer;
+  $('fWhatsapp').value = data.whatsapp;
+  renderProducts();
+}
+
+function imgSrc(p) {
+  return previews[p.image] || p.image || '';
+}
+
+function renderProducts() {
+  var box = $('productsList');
+  box.innerHTML = '';
+  data.products.forEach(function (p, i) {
+    var el = document.createElement('div');
+    el.className = 'product';
+
+    var img = document.createElement('img');
+    img.src = imgSrc(p);
+    img.alt = '';
+
+    var fields = document.createElement('div');
+    fields.className = 'fields';
+
+    var idIn = document.createElement('input');
+    idIn.type = 'number';
+    idIn.value = p.id;
+    idIn.title = 'الرقم';
+    idIn.oninput = function () { p.id = parseInt(idIn.value, 10) || 0; };
+
+    var nameIn = document.createElement('input');
+    nameIn.type = 'text';
+    nameIn.value = p.name;
+    nameIn.placeholder = 'اسم المنتج';
+    nameIn.oninput = function () { p.name = nameIn.value; };
+
+    var priceIn = document.createElement('input');
+    priceIn.type = 'number';
+    priceIn.value = p.price;
+    priceIn.placeholder = 'السعر';
+    priceIn.oninput = function () { p.price = parseFloat(priceIn.value) || 0; };
+
+    fields.appendChild(idIn);
+    fields.appendChild(nameIn);
+    fields.appendChild(priceIn);
+
+    var acts = document.createElement('div');
+    acts.className = 'acts';
+
+    var file = document.createElement('input');
+    file.type = 'file';
+    file.accept = 'image/*';
+    file.style.display = 'none';
+    file.onchange = async function () {
+      if (!file.files[0]) { return; }
+      try {
+        var res = await compressImage(file.files[0]);
+        var name = 'images/p' + Date.now() + '.jpg';
+        pending[name] = res.b64;
+        previews[name] = res.dataUrl;
+        p.image = name;
+        img.src = res.dataUrl;
+      } catch (e) {
+        alert('تعذر قراءة الصورة، جرب صورة ثانية');
+      }
+    };
+
+    var picBtn = document.createElement('button');
+    picBtn.className = 'gray';
+    picBtn.textContent = p.image ? 'تغيير الصورة' : 'اختيار صورة';
+    picBtn.onclick = function () { file.click(); };
+
+    var up = document.createElement('button');
+    up.className = 'gray';
+    up.textContent = '↑';
+    up.onclick = function () { moveProduct(i, -1); };
+
+    var down = document.createElement('button');
+    down.className = 'gray';
+    down.textContent = '↓';
+    down.onclick = function () { moveProduct(i, 1); };
+
+    var del = document.createElement('button');
+    del.className = 'red';
+    del.textContent = 'حذف';
+    del.onclick = function () {
+      if (confirm('حذف المنتج رقم ' + p.id + '؟')) {
+        data.products.splice(i, 1);
+        renderProducts();
+      }
+    };
+
+    acts.appendChild(file);
+    acts.appendChild(picBtn);
+    acts.appendChild(up);
+    acts.appendChild(down);
+    acts.appendChild(del);
+
+    el.appendChild(img);
+    el.appendChild(fields);
+    el.appendChild(acts);
+    box.appendChild(el);
+  });
+}
+
+function moveProduct(i, dir) {
+  var j = i + dir;
+  if (j < 0 || j >= data.products.length) { return; }
+  var t = data.products[i];
+  data.products[i] = data.products[j];
+  data.products[j] = t;
+  renderProducts();
+}
+
+$('addBtn').onclick = function () {
+  var max = 0;
+  data.products.forEach(function (p) { if (p.id > max) { max = p.id; } });
+  data.products.push({ id: max + 1, name: '', price: 0, image: '' });
+  renderProducts();
+  window.scrollTo(0, document.body.scrollHeight);
+};
+
+/* ---------- ضغط الصور ---------- */
+
+function compressImage(file) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = function () {
+      var img = new Image();
+      img.onerror = reject;
+      img.onload = function () {
+        var max = 1000;
+        var w = img.width;
+        var h = img.height;
+        if (w > max || h > max) {
+          if (w >= h) { h = Math.round(h * max / w); w = max; }
+          else { w = Math.round(w * max / h); h = max; }
+        }
+        var c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        var ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        var url = c.toDataURL('image/jpeg', 0.85);
+        resolve({ dataUrl: url, b64: url.split(',')[1] });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------- الواتساب ---------- */
+
+$('fWhatsapp').oninput = function () {
+  var n = normalizePhone($('fWhatsapp').value);
+  if (/^\d{11,15}$/.test(n)) {
+    setMsg($('waHint'), 'سيُحفظ كـ: ' + n, 'ok');
+  } else {
+    setMsg($('waHint'), 'الرقم غير مكتمل', 'err');
+  }
+};
+
+/* ---------- الرقم السري ---------- */
+
+$('pinBtn').onclick = async function () {
+  var m = $('pinMsg');
+  var oldH = await sha256($('pinOld').value.trim());
+  var n1 = $('pinNew').value.trim();
+  var n2 = $('pinNew2').value.trim();
+  if (oldH !== data.pinHash) { setMsg(m, 'الرقم السري الحالي غير صحيح', 'err'); return; }
+  if (n1.length < 4) { setMsg(m, 'الرقم الجديد قصير، لازم 4 أرقام فأكثر', 'err'); return; }
+  if (n1 !== n2) { setMsg(m, 'الرقمان غير متطابقين', 'err'); return; }
+  data.pinHash = await sha256(n1);
+  $('pinOld').value = '';
+  $('pinNew').value = '';
+  $('pinNew2').value = '';
+  setMsg(m, 'تم التغيير، اضغط "حفظ ونشر الموقع" لتثبيته', 'ok');
+};
+
+/* ---------- مفتاح النشر ---------- */
+
+$('tokenBtn').onclick = function () {
+  var t = $('tokenInput').value.trim();
+  if (!t) { setMsg($('tokenMsg'), 'الصق المفتاح أول', 'err'); return; }
+  try {
+    localStorage.setItem('gh_token', t);
+    $('tokenInput').value = '';
+    setMsg($('tokenMsg'), 'تم حفظ المفتاح على هذا الجهاز', 'ok');
+  } catch (e) {
+    setMsg($('tokenMsg'), 'المتصفح منع الحفظ، افتح اللوحة من متصفح عادي', 'err');
+  }
+};
+
+$('tokenDel').onclick = function () {
+  try { localStorage.removeItem('gh_token'); } catch (e) {}
+  setMsg($('tokenMsg'), 'تم حذف المفتاح من هذا الجهاز', 'ok');
+};
+
+/* ---------- الحفظ والنشر ---------- */
+
+async function putFile(path, b64, message) {
+  var sha;
+  var g = await fetch(ghUrl(path) + '?ref=' + BRANCH + '&t=' + Date.now(), { headers: ghHeaders() });
+  if (g.status === 200) { sha = (await g.json()).sha; }
+  else if (g.status === 401 || g.status === 403) { throw new Error('auth'); }
+  else if (g.status !== 404) { throw new Error('get ' + g.status); }
+
+  var body = { message: message, content: b64, branch: BRANCH };
+  if (sha) { body.sha = sha; }
+  var r = await fetch(ghUrl(path), {
+    method: 'PUT',
+    headers: ghHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body)
+  });
+  if (r.status === 401 || r.status === 403) { throw new Error('auth'); }
+  if (!r.ok) { throw new Error('put ' + r.status); }
+}
+
+$('saveBtn').onclick = async function () {
+  var m = $('saveMsg');
+  var btn = $('saveBtn');
+
+  data.title = $('fTitle').value.trim();
+  data.subtitle = $('fSubtitle').value.trim();
+  data.footer = $('fFooter').value.trim();
+  var phone = normalizePhone($('fWhatsapp').value);
+
+  if (!data.title) { setMsg(m, 'العنوان فاضي', 'err'); return; }
+  if (!/^\d{11,15}$/.test(phone)) { setMsg(m, 'رقم الواتساب غير صحيح', 'err'); return; }
+  data.whatsapp = phone;
+
+  var ids = {};
+  for (var i = 0; i < data.products.length; i++) {
+    var p = data.products[i];
+    if (!p.name.trim()) { setMsg(m, 'المنتج رقم ' + p.id + ' بدون اسم', 'err'); return; }
+    if (!p.image) { setMsg(m, 'المنتج رقم ' + p.id + ' بدون صورة', 'err'); return; }
+    if (!p.id || ids[p.id]) { setMsg(m, 'الرقم ' + p.id + ' مكرر أو غير صحيح', 'err'); return; }
+    ids[p.id] = true;
+  }
+
+  if (!getToken()) {
+    setMsg(m, 'ما فيه مفتاح نشر على هذا الجهاز، أضفه من القسم الأخير', 'err');
+    $('tokenBox').open = true;
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    var used = {};
+    data.products.forEach(function (p) { used[p.image] = true; });
+    var names = Object.keys(pending).filter(function (n) { return used[n]; });
+
+    for (var k = 0; k < names.length; k++) {
+      setMsg(m, 'رفع الصورة ' + (k + 1) + ' من ' + names.length + '...', '');
+      await putFile(names[k], pending[names[k]], 'إضافة صورة منتج');
+    }
+
+    setMsg(m, 'حفظ البيانات...', '');
+    var clean = {
+      title: data.title,
+      subtitle: data.subtitle,
+      footer: data.footer,
+      whatsapp: data.whatsapp,
+      pinHash: data.pinHash,
+      products: data.products.map(function (p) {
+        return { id: p.id, name: p.name.trim(), price: p.price, image: p.image };
+      })
+    };
+    await putFile('data.json', toB64(JSON.stringify(clean, null, 2)), 'تحديث بيانات الموقع');
+
+    names.forEach(function (n) { delete pending[n]; });
+    setMsg(m, 'تم الحفظ. التغييرات تظهر للعملاء بعد دقيقة تقريباً', 'ok');
+  } catch (e) {
+    if (e.message === 'auth') {
+      setMsg(m, 'المفتاح غير صحيح أو ما عنده صلاحية الكتابة. أنشئ مفتاح جديد', 'err');
+      $('tokenBox').open = true;
+    } else {
+      setMsg(m, 'فشل الحفظ (' + e.message + '). تأكد من الإنترنت وحاول مرة ثانية', 'err');
+    }
+  }
+  btn.disabled = false;
+};
+
+/* ---------- بداية الصفحة ---------- */
+
+$('loginBtn').onclick = login;
+$('pinInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { login(); } });
+loadPublic().then(function (d) { data = d; }).catch(function () {});
+</script>
+</body>
+</html>
