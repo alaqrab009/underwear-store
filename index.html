@@ -30,6 +30,21 @@
     <a class="admin-link" href="admin.html">إدارة</a>
   </footer>
 
+  <div class="lightbox" id="lightbox">
+    <button type="button" class="lb-close" id="lbClose" aria-label="إغلاق">&times;</button>
+    <button type="button" class="lb-nav lb-prev" id="lbPrev" aria-label="الصورة السابقة">&#10094;</button>
+    <button type="button" class="lb-nav lb-next" id="lbNext" aria-label="الصورة التالية">&#10095;</button>
+    <div class="lb-stage" id="lbStage">
+      <img id="lbImg" src="" alt="" draggable="false">
+    </div>
+    <div class="lb-zoom-bar">
+      <button type="button" id="lbZoomOut" aria-label="تصغير">−</button>
+      <span id="lbZoomLevel">100%</span>
+      <button type="button" id="lbZoomIn" aria-label="تكبير">+</button>
+    </div>
+    <span class="lb-count" id="lbCount"></span>
+  </div>
+
   <script>
     var DATA = null;
     var grid = document.getElementById('productsGrid');
@@ -51,6 +66,181 @@
       return [];
     }
 
+    /* ---------- صندوق تكبير الصورة ---------- */
+
+    var lb = {
+      el: document.getElementById('lightbox'),
+      stage: document.getElementById('lbStage'),
+      img: document.getElementById('lbImg'),
+      count: document.getElementById('lbCount'),
+      zoomLevel: document.getElementById('lbZoomLevel'),
+      imgs: [],
+      index: 0,
+      scale: 1,
+      x: 0,
+      y: 0
+    };
+
+    var MIN_SCALE = 1;
+    var MAX_SCALE = 4;
+
+    function lbApply(animate) {
+      lb.img.style.transition = animate ? 'transform 0.18s ease' : 'none';
+      lb.img.style.transform = 'translate(' + lb.x + 'px,' + lb.y + 'px) scale(' + lb.scale + ')';
+      lb.img.style.cursor = lb.scale > 1 ? 'grab' : 'zoom-in';
+      lb.zoomLevel.textContent = Math.round(lb.scale * 100) + '%';
+    }
+
+    function lbClampPan() {
+      if (lb.scale <= 1) { lb.x = 0; lb.y = 0; return; }
+      var maxX = (lb.stage.clientWidth * (lb.scale - 1)) / 2;
+      var maxY = (lb.stage.clientHeight * (lb.scale - 1)) / 2;
+      lb.x = Math.max(-maxX, Math.min(maxX, lb.x));
+      lb.y = Math.max(-maxY, Math.min(maxY, lb.y));
+    }
+
+    function lbSetScale(newScale, animate) {
+      lb.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+      lbClampPan();
+      lbApply(animate);
+    }
+
+    function lbShow(i) {
+      lb.index = (i + lb.imgs.length) % lb.imgs.length;
+      lb.img.src = lb.imgs[lb.index];
+      lb.scale = 1;
+      lb.x = 0;
+      lb.y = 0;
+      lbApply(false);
+      lb.count.textContent = lb.imgs.length > 1 ? (lb.index + 1) + '/' + lb.imgs.length : '';
+      var multi = lb.imgs.length > 1;
+      document.getElementById('lbPrev').style.display = multi ? 'flex' : 'none';
+      document.getElementById('lbNext').style.display = multi ? 'flex' : 'none';
+    }
+
+    function openLightbox(imgs, startIndex) {
+      lb.imgs = imgs;
+      document.body.style.overflow = 'hidden';
+      lb.el.classList.add('open');
+      lbShow(startIndex || 0);
+    }
+
+    function closeLightbox() {
+      lb.el.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('lbClose').onclick = closeLightbox;
+    document.getElementById('lbPrev').onclick = function (e) { e.stopPropagation(); lbShow(lb.index - 1); };
+    document.getElementById('lbNext').onclick = function (e) { e.stopPropagation(); lbShow(lb.index + 1); };
+    document.getElementById('lbZoomIn').onclick = function (e) { e.stopPropagation(); lbSetScale(lb.scale + 0.6, true); };
+    document.getElementById('lbZoomOut').onclick = function (e) { e.stopPropagation(); lbSetScale(lb.scale - 0.6, true); };
+
+    lb.el.addEventListener('click', function (e) {
+      if (e.target === lb.el) { closeLightbox(); }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (!lb.el.classList.contains('open')) { return; }
+      if (e.key === 'Escape') { closeLightbox(); }
+      else if (e.key === 'ArrowLeft') { lbShow(lb.index - (document.dir === 'rtl' ? -1 : 1)); }
+      else if (e.key === 'ArrowRight') { lbShow(lb.index + (document.dir === 'rtl' ? -1 : 1)); }
+      else if (e.key === '+') { lbSetScale(lb.scale + 0.6, true); }
+      else if (e.key === '-') { lbSetScale(lb.scale - 0.6, true); }
+    });
+
+    /* التكبير بعجلة الفأرة */
+    lb.stage.addEventListener('wheel', function (e) {
+      if (!lb.el.classList.contains('open')) { return; }
+      e.preventDefault();
+      var delta = e.deltaY > 0 ? -0.3 : 0.3;
+      lbSetScale(lb.scale + delta, false);
+    }, { passive: false });
+
+    /* فأرة ولمس موحّدان عبر Pointer Events:
+       - إصبع واحد / فأرة مع الضغط والسحب: تحريك الصورة عند التكبير
+       - إصبعان (pinch): تكبير وتصغير باللمس
+       - نقرة/لمسة مزدوجة سريعة بلا تحريك: تبديل التكبير 1x <-> 2.4x */
+    var activePointers = {};
+    var activeCount = 0;
+    var pinchActive = false, pinchStartDist = 0, pinchStartScale = 1;
+    var panId = null, panStartX = 0, panStartY = 0, panOrigX = 0, panOrigY = 0;
+    var tapCandidate = null;
+    var lastTapTime = 0;
+
+    function dist2(a, b) {
+      var dx = a.x - b.x, dy = a.y - b.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    lb.stage.addEventListener('pointerdown', function (e) {
+      activePointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+      activeCount = Object.keys(activePointers).length;
+
+      if (activeCount === 2) {
+        var ids = Object.keys(activePointers);
+        pinchActive = true;
+        pinchStartDist = dist2(activePointers[ids[0]], activePointers[ids[1]]);
+        pinchStartScale = lb.scale;
+        panId = null;
+        tapCandidate = null;
+      } else if (activeCount === 1) {
+        pinchActive = false;
+        panId = e.pointerId;
+        panStartX = e.clientX; panStartY = e.clientY;
+        panOrigX = lb.x; panOrigY = lb.y;
+        tapCandidate = { x: e.clientX, y: e.clientY, time: Date.now() };
+      }
+    });
+
+    lb.stage.addEventListener('pointermove', function (e) {
+      if (!(e.pointerId in activePointers)) { return; }
+      activePointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+
+      if (pinchActive && activeCount === 2) {
+        var ids = Object.keys(activePointers);
+        var d = dist2(activePointers[ids[0]], activePointers[ids[1]]);
+        if (pinchStartDist > 0) { lbSetScale(pinchStartScale * (d / pinchStartDist), false); }
+        return;
+      }
+
+      if (panId === e.pointerId) {
+        if (tapCandidate) {
+          var movedFar = Math.abs(e.clientX - tapCandidate.x) > 8 || Math.abs(e.clientY - tapCandidate.y) > 8;
+          if (movedFar) { tapCandidate = null; }
+        }
+        if (lb.scale > 1) {
+          lb.x = panOrigX + (e.clientX - panStartX);
+          lb.y = panOrigY + (e.clientY - panStartY);
+          lbClampPan();
+          lbApply(false);
+        }
+      }
+    });
+
+    function pointerEnd(e) {
+      delete activePointers[e.pointerId];
+      activeCount = Object.keys(activePointers).length;
+      if (activeCount < 2) { pinchActive = false; }
+
+      if (panId === e.pointerId) {
+        if (tapCandidate && (Date.now() - tapCandidate.time) < 300) {
+          var now = Date.now();
+          if (now - lastTapTime < 350) {
+            lbSetScale(lb.scale > 1 ? 1 : 2.4, true);
+            lastTapTime = 0;
+          } else {
+            lastTapTime = now;
+          }
+        }
+        panId = null;
+        tapCandidate = null;
+      }
+    }
+
+    lb.stage.addEventListener('pointerup', pointerEnd);
+    lb.stage.addEventListener('pointercancel', pointerEnd);
+
     function buildWhatsappLink(p) {
       var imgs = productImages(p);
       var imageUrl = imgs.length ? (siteBase() + imgs[0]) : '';
@@ -68,11 +258,15 @@
 
       var track = document.createElement('div');
       track.className = 'img-track';
-      imgs.forEach(function (src) {
+      imgs.forEach(function (src, i) {
         var img = document.createElement('img');
         img.src = src;
         img.alt = p.name;
         img.draggable = false;
+        img.onclick = function (e) {
+          e.stopPropagation();
+          openLightbox(imgs, i);
+        };
         track.appendChild(img);
       });
       wrap.appendChild(track);
