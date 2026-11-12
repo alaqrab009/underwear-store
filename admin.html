@@ -89,7 +89,7 @@ a { color: #25406b; }
 
   <div class="box">
     <h2>أقسام المتجر</h2>
-    <p class="hint">أنشئ أقسام مثل "نسائي" و"رجالي"، وبعدها اختر لكل منتج قسمه من القائمة في بطاقته بالأسفل. المنتج بدون قسم يظهر في "بدون قسم".</p>
+    <p class="hint">أنشئ أقسام مثل "نسائي" و"رجالي"، وبعدها اختر لكل منتج قسمه من القائمة في بطاقته بالأسفل. المنتج بدون قسم يظهر في "بدون قسم". اضغط على اسم أي قسم لتعديله.</p>
     <div class="cat-list" id="catList"></div>
     <div class="cat-add">
       <input type="text" id="catInput" placeholder="اسم القسم الجديد">
@@ -282,6 +282,39 @@ function renderCategories() {
 
     var label = document.createElement('span');
     label.textContent = cat;
+    label.title = 'اضغط للتعديل';
+    label.style.cursor = 'pointer';
+    label.onclick = function () {
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.value = cat;
+      input.style.width = Math.max(60, cat.length * 9) + 'px';
+
+      function commit() {
+        var newName = input.value.trim();
+        if (!newName || newName === cat) { renderCategories(); return; }
+        if (data.categories.indexOf(newName) !== -1 && newName !== cat) {
+          setMsg($('catMsg'), 'هذا القسم موجود مسبقاً', 'err');
+          renderCategories();
+          return;
+        }
+        data.categories[idx] = newName;
+        data.products.forEach(function (p) { if (p.category === cat) { p.category = newName; } });
+        setMsg($('catMsg'), 'تم تعديل اسم القسم', 'ok');
+        renderCategories();
+        renderProducts();
+      }
+
+      input.onkeydown = function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') { e.preventDefault(); renderCategories(); }
+      };
+      input.onblur = commit;
+
+      chip.replaceChild(input, label);
+      input.focus();
+      input.select();
+    };
     chip.appendChild(label);
 
     var del = document.createElement('button');
