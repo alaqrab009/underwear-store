@@ -17,8 +17,17 @@
   </header>
 
   <main>
-    <div class="search-box">
-      <input type="text" id="searchInput" placeholder="ابحث برقم المنتج أو اسمه...">
+    <div class="search-row">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="ابحث برقم المنتج أو اسمه...">
+      </div>
+      <div class="cat-dropdown" id="catDropdownWrap">
+        <button type="button" class="cat-dropdown-btn" id="catDropdownBtn">
+          <span id="catDropdownLabel">الأقسام</span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="cat-dropdown-menu" id="catDropdownMenu"></div>
+      </div>
     </div>
     <div class="cat-tabs" id="catTabs"></div>
     <div class="grid" id="productsGrid"></div>
@@ -363,27 +372,72 @@
       return list;
     }
 
+    var catDropdownWrap = document.getElementById('catDropdownWrap');
+    var catDropdownBtn = document.getElementById('catDropdownBtn');
+    var catDropdownLabel = document.getElementById('catDropdownLabel');
+    var catDropdownMenu = document.getElementById('catDropdownMenu');
+
+    function closeCatDropdown() {
+      catDropdownWrap.classList.remove('open');
+    }
+
+    function selectCategory(name) {
+      activeCategory = name;
+      Array.prototype.forEach.call(catTabs.children, function (c) {
+        c.classList.toggle('active', c.textContent === name);
+      });
+      Array.prototype.forEach.call(catDropdownMenu.children, function (c) {
+        c.classList.toggle('active', c.textContent === name);
+      });
+      catDropdownLabel.textContent = name === ALL ? 'الأقسام' : name;
+      closeCatDropdown();
+      render(currentList());
+    }
+
     function buildTabs() {
       var cats = Array.isArray(DATA.categories) ? DATA.categories : [];
       catTabs.innerHTML = '';
-      if (cats.length === 0) { return; }
+      catDropdownMenu.innerHTML = '';
+
+      if (cats.length === 0) {
+        catDropdownWrap.style.display = 'none';
+        return;
+      }
+      catDropdownWrap.style.display = '';
+
       var hasUncategorized = DATA.products.some(function (p) { return !p.category; });
       var names = [ALL].concat(cats).concat(hasUncategorized ? [NONE] : []);
+      catDropdownLabel.textContent = activeCategory === ALL ? 'الأقسام' : activeCategory;
+
       names.forEach(function (name) {
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'cat-tab' + (name === activeCategory ? ' active' : '');
         btn.textContent = name;
-        btn.onclick = function () {
-          activeCategory = name;
-          Array.prototype.forEach.call(catTabs.children, function (c) {
-            c.classList.toggle('active', c === btn);
-          });
-          render(currentList());
-        };
+        btn.onclick = function () { selectCategory(name); };
         catTabs.appendChild(btn);
+
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'cat-dropdown-item' + (name === activeCategory ? ' active' : '');
+        item.textContent = name;
+        item.onclick = function () { selectCategory(name); };
+        catDropdownMenu.appendChild(item);
       });
     }
+
+    catDropdownBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      catDropdownWrap.classList.toggle('open');
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!catDropdownWrap.contains(e.target)) { closeCatDropdown(); }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { closeCatDropdown(); }
+    });
 
     function render(list) {
       grid.innerHTML = '';
