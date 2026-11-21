@@ -5,5 +5,24 @@
   "whatsapp": "966553283129",
   "pinHash": "217f7badc5615d5e40b71b9177cf9c15a1a61fa0c22de6bff18e18bece6dba0d",
   "categories": [],
-  "products": []
+  "products": [
+    {
+      "id": 1,
+      "name": "الاحمر الداكن",
+      "price": 200,
+      "category": "",
+      "images": [
+        "images/p1795224999123_0.jpg"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "العروسه",
+      "price": 2000,
+      "category": "",
+      "images": [
+        "images/p1795225046349_0.jpg"
+      ]
+    }
+  ]
 }
